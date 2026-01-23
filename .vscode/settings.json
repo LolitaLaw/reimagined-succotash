@@ -1,0 +1,11 @@
+{
+  "idf.openOcdConfigs": [
+    "board/esp32c3-ftdi.cfg"
+  ],
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32c3"
+  },
+  "idf.portWin": "COM6",
+  "idf.flashType": "UART",
+  "commentTranslate.source": "Copilot"
+}
