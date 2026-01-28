@@ -8,8 +8,8 @@
 #include "driver/gpio.h"
 #include "freertos/portmacro.h"
 #include "esp_log.h"
-#include "BSP/spi/bsp_spi2.h"
-#include "BSP/spi/bsp_soft_spi.h"
+#include "BSP/SPI/bsp_spi2.h"
+#include "BSP/SPI/bsp_soft_spi.h"
 #include "BSP/bsp_config.h"
 
 #define GPL811X_OTP
