@@ -73,7 +73,7 @@ static void key_process_task(void *arg)
                     if (is_active)
                     {
                         k->ticks++;
-                        if (k->ticks >= 2)
+                        if (k->ticks >= DEBOUNCE_TICKS)
                         { // 2 * 20ms = 40ms 消抖
                             k->state = STATE_PRESS;
                             k->ticks = 0;
@@ -220,7 +220,7 @@ static void handle_light_key(key_event_t event)
         backlight_set(backlight_on);
         if (backlight_on <= 8)
         {
-            backlight_on += pow(2, ++level) - 1;
+            backlight_on += (1 << ++level) - 1;
         }
         else
             backlight_on = level = 0;

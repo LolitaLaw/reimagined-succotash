@@ -21,7 +21,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             break;
         case WIFI_EVENT_STA_DISCONNECTED: // WIFI断开连接
             ESP_LOGI("", "WiFi STA断开连接，正在重新连接...");
-            esp_wifi_connect();
+
             if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY)
             {
                 esp_wifi_connect();
