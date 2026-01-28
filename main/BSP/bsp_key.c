@@ -89,51 +89,7 @@ static void key_state_handler(key_cfg_t *key, bool is_hw_active)
         break;
     }
 }
-
-// ================= 1. 物理层：硬件读取与映射 =================
-// 作用：屏蔽硬件细节，处理组合键优先级
-static key_id_t key_hal_read(void)
-{
-    // 1. 读取 GPL811X 的 Port E 和 Port D (根据你的原理图调整)
-    // 假设 user_spi.c 中已经处理了互斥锁，这里直接读
-    uint8_t raw_e = SPI2_ReadByte(P_IO_PortE_Data);
-    uint8_t raw_d = SPI2_ReadByte(P_IO_PortD_Data);
-
-    // 低电平有效，按下时对应位为 0
-    // 如果是高电平有效，则取反 ~
-    // 这里为了演示，假设按键都在 PortE，你需要根据 D_IOE_x_KeyScan 宏修改掩码
-
-    // 2. 优先判断组合键 (防止组合键被误判为单键)
-    // 示例：假设 Bit0 是 SET, Bit1 是 UP
-    // bool b_set = (raw_e & 0x04); // 假设0是按下
-    // bool b_up = (raw_e & 0x08);
-    // bool b_down = (raw_e & 0x10);
-    // bool pin0_E = (raw_e & D_IOE_0_KeyScan);
-    // bool pin1_E = (raw_e & D_IOE_1_KeyScan);
-
-    // bool pin0_D = (raw_d & D_IOD_0_KeyScan);
-    // bool pin1_D = (raw_d & D_IOD_1_KeyScan);
-    // bool pin2_D = (raw_d & D_IOD_2_KeyScan);
-    // bool pin3_D = (raw_d & D_IOD_3_KeyScan);
-    // bool pin4_D = (raw_d & D_IOD_4_KeyScan);
-    // bool pin5_D = (raw_d & D_IOD_5_KeyScan);
-
-    // if (b_set && b_up)
-    //     return KEYS_COMBO_SET_UP;
-    // if (b_up && b_down)
-    //     return KEYS_COMBO_UP_DOWN;
-
-    // // 3. 判断单键
-    // if (b_set)
-    //     return KEYS_SET;
-    // if (b_up)
-    //     return KEYS_UP;
-    // if (b_down)
-    //     return KEYS_DOWN;
-    return KEYS_NONE;
-}
-
-// ================= 2. 核心层：状态机处理 =================
+// ================= 按键处理任务 =================
 static void key_process_task(void *arg)
 {
     while (1)
@@ -168,102 +124,7 @@ static void key_process_task(void *arg)
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
-static void key_process_task2(void *arg)
-{
-    static key_state_t state = STATE_IDLE;
-    static key_id_t active_key = KEYS_NONE;
-    static uint32_t ticks = 0;
-
-    while (1)
-    {
-        // 1. 获取当前逻辑键值
-        key_id_t curr_key = key_hal_read();
-
-        // 2. 状态机流转
-        switch (state)
-        {
-        case STATE_IDLE:
-            if (curr_key != KEYS_NONE)
-            {
-                state = STATE_DEBOUNCE; // 检测到按下，去消抖
-                active_key = curr_key;  // 锁定当前按键
-                ticks = 0;
-            }
-            break;
-
-        case STATE_DEBOUNCE:
-            ticks++;
-            if (ticks >= DEBOUNCE_TICKS)
-            {
-                if (curr_key == active_key)
-                {
-                    // 消抖通过，确认为按下
-                    state = STATE_PRESSED;
-                    ticks = 0;
-                    if (g_app_cb)
-                        g_app_cb(active_key, KEYS_EVT_PRESS);
-                }
-                else
-                {
-                    // 抖动或者是干扰，回到空闲
-                    state = STATE_IDLE;
-                }
-            }
-            break;
-
-        case STATE_PRESSED:
-            if (curr_key != active_key)
-            {
-                // 按键释放 (或者是换了别的键) -> 触发短按
-                if (g_app_cb)
-                {
-                    g_app_cb(active_key, KEYS_EVT_SHORT);
-                    g_app_cb(active_key, KEYS_EVT_RELEASE);
-                }
-                state = STATE_IDLE;
-            }
-            else
-            {
-                // 按键一直按着 -> 计时
-                ticks++;
-                if (ticks >= LONG_PRESS_TICKS)
-                {
-                    // 达到长按时间 -> 触发长按开始
-                    state = STATE_LONG_PRESS;
-                    ticks = 0; // 重置用于连发计时
-                    if (g_app_cb)
-                        g_app_cb(active_key, KEYS_EVT_LONG_START);
-                }
-            }
-            break;
-
-        case STATE_LONG_PRESS:
-            if (curr_key != active_key)
-            {
-                // 长按后松开
-                if (g_app_cb)
-                    g_app_cb(active_key, KEYS_EVT_RELEASE);
-                state = STATE_IDLE;
-            }
-            else
-            {
-                // 长按保持中 -> 处理连发 (Repeat)
-                ticks++;
-                if (ticks >= REPEAT_RATE_TICKS)
-                {
-                    ticks = 0;
-                    if (g_app_cb)
-                        g_app_cb(active_key, KEYS_EVT_LONG_HOLD);
-                }
-            }
-            break;
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(KEY_SCAN_INTERVAL_MS));
-    }
-}
-
-// ================= 3. 初始化接口 =================
+// ================= 初始化接口 =================
 void key_init(key_callback_t cb)
 {
     g_app_cb = cb;
