@@ -14,20 +14,21 @@ void app_main(void)
      wifi_init();          // 初始化 WiFi 模块
 
      //==== 初始化 SPI 总线 ====
-     init_spi_mutex();          // 初始化 SPI 互斥量
      soft_spi_init();           //  初始化软件 SPI
      if (!soft_spi_test_comm()) //  测试通信
      {
           ESP_LOGE("", "SPI 通信失败!");
           return;
      }
+
      //==== 初始化 LCD 显示屏 ====
      lcd_init(); // 初始化 LCD 控制器
      // 初始化并点亮背光
      backlight_init();
-     backlight_set(6); // 亮度 6/7
+     backlight_set(8); // 亮度 8
      // LCD 全显示
      lcd_full_on();
+
      //==== 初始化按键扫描 ====
      key_init();
 

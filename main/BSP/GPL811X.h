@@ -1,16 +1,7 @@
 #ifndef __GPL811X__H__
 #define __GPL811X__H__
 
-#include <soc/cpu.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include "driver/gpio.h"
-#include "freertos/portmacro.h"
-#include "esp_log.h"
-#include "BSP/SPI/bsp_spi2.h"
-#include "BSP/SPI/bsp_soft_spi.h"
-#include "BSP/bsp_config.h"
+#include "bsp_config.h"
 
 #define GPL811X_OTP
 #define GPL811P08Ax 1
@@ -452,18 +443,13 @@ extern uint8_t T_DataBuf[4];
 #define KEY_TEMP 0x20
 #define _KEY_LIGHT 0x40
 
-// void F_GPL811Reg_WriteData(uint16_t RegAddr, uint8_t data);
-// uint8_t F_GPL811Reg_ReadData(uint16_t RegAddr);
+void F_GPL811Reg_WriteData(uint16_t RegAddr, uint8_t data);  // 写寄存器
+uint8_t F_GPL811Reg_ReadData(uint16_t RegAddr);              // 读寄存器
+void F_GPL811Reg_SetBits(uint16_t RegAddr, uint8_t bits);    // 寄存器置位
+void F_GPL811Reg_ClrBits(uint16_t RegAddr, uint8_t bits);    // 寄存器清位
+void F_GPL811Reg_TogBits(uint16_t RegAddr, uint8_t bits);    // 寄存器取反
+uint8_t F_GPL811Reg_TstBits(uint16_t RegAddr, uint8_t bits); // 寄存器测试位
 
-// void F_GPL811Reg_SetBits(uint16_t RegAddr, uint8_t bits);
-// void F_GPL811Reg_ClrBits(uint16_t RegAddr, uint8_t bits);
-// void F_GPL811Reg_TogBits(uint16_t RegAddr, uint8_t bits);
-// uint8_t F_GPL811Reg_TstBits(uint16_t RegAddr, uint8_t bits);
-
-// void F_GPL811X_Init(void);
-// void F_detect_jp_status(void);
-// void F_WaitGPL811Ready(void);
-// void F_InitLcd(void);
-void lcd_init(void);
+void F_WaitGPL811Ready(void);
 
 #endif

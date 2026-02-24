@@ -5,7 +5,12 @@
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32c3"
   },
-  "idf.portWin": "COM6",
+  "idf.portWin": "COM5",
   "idf.flashType": "UART",
-  "commentTranslate.source": "Copilot"
+  "idf.espIdfPathWin": "D:\\esp\\v4.4.3\\esp-idf",
+  "commentTranslate.source": "Copilot",
+  "makefile.configureOnOpen": false,
+  "idf.sbomFilePath": "D:\\esp\\v4.4.3\\esp-idf",
+  "idf.currentSetup": "D:/Espressif/frameworks/esp-idf-v4.4.3/",
+  "editor.fontSize": 16
 }

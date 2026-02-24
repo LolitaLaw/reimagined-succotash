@@ -17,12 +17,7 @@
 #ifndef __BSP_SOFT_SPI_H__
 #define __BSP_SOFT_SPI_H__
 
-#include <stdint.h>
-#include <stdbool.h>
-#include "esp_err.h"
-#include "driver/gpio.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
+#include "bsp_config.h"
 
 /*============================================================================
  *                              配置区域
@@ -43,6 +38,10 @@
 #define SOFT_SPI_SCLK_PIN GPIO_NUM_6 // 时钟信号
 #define SOFT_SPI_CS_PIN GPIO_NUM_18  // 片选信号
 
+#define SPI_SDI_Mask ((uint64_t)(((uint64_t)1) << SOFT_SPI_MOSI_PIN))
+#define SPI_SDO_Mask ((uint64_t)(((uint64_t)1) << SOFT_SPI_MISO_PIN))
+#define SPI_SCN_Mask ((uint64_t)(((uint64_t)1) << SOFT_SPI_CS_PIN))
+#define SPI_CLK_Mask ((uint64_t)(((uint64_t)1) << SOFT_SPI_SCLK_PIN))
 /**
  * SPI 时序参数（单位：微秒）
  *
@@ -62,6 +61,26 @@
 #define SOFT_SPI_CS_IDLE_US 45    // CS 拉高后的空闲时间
 #define SOFT_SPI_READ_DELAY_US 45 // 读操作的额外延时
 
+// MOSI 引脚操作
+#define MOSI_H() gpio_set_level(SOFT_SPI_MOSI_PIN, 1)
+#define MOSI_L() gpio_set_level(SOFT_SPI_MOSI_PIN, 0)
+
+// SCLK 引脚操作
+#define SCLK_H() gpio_set_level(SOFT_SPI_SCLK_PIN, 1)
+#define SCLK_L() gpio_set_level(SOFT_SPI_SCLK_PIN, 0)
+
+// MISO 引脚读取
+#define MISO_READ() gpio_get_level(SOFT_SPI_MISO_PIN)
+
+// CS 引脚操作(低电平有效)
+#define CS_L()                          \
+    gpio_set_level(SOFT_SPI_CS_PIN, 0); \
+    ets_delay_us(80)
+
+#define CS_H()                          \
+    ets_delay_us(30);                   \
+    gpio_set_level(SOFT_SPI_CS_PIN, 1); \
+    ets_delay_us(45)
 /**
  * GPL811x 寄存器地址特点：
  * - 读操作：地址最高位置 1（| 0x8000）
@@ -90,10 +109,10 @@ typedef struct
 } soft_spi_config_t;
 
 // 初始化SPI
-esp_err_t soft_spi_init(void);
+void soft_spi_init(void);
 
 // 释放软件 SPI 资源
-esp_err_t soft_spi_deinit(void);
+void soft_spi_deinit(void);
 
 /**
  * @brief 写入单字节到指定地址
@@ -105,7 +124,7 @@ esp_err_t soft_spi_deinit(void);
  * 通信协议（GPL811x）：
  * [CS拉低] → [地址高8位] → [地址低8位] → [数据] → [CS拉高]
  */
-esp_err_t soft_spi_write_byte(uint16_t addr, uint8_t data);
+void soft_spi_write_byte(uint16_t addr, uint8_t data);
 
 /**
  * @brief 从指定地址读取单字节
@@ -117,7 +136,7 @@ esp_err_t soft_spi_write_byte(uint16_t addr, uint8_t data);
  * 通信协议（GPL811x）：
  * [CS拉低] → [地址|0x8000高8位] → [地址低8位] → [延时] → [读数据] → [CS拉高]
  */
-esp_err_t soft_spi_read_byte(uint16_t addr, uint8_t *data);
+void soft_spi_read_byte(uint16_t addr, uint8_t *data);
 
 /**
  * @brief 写入多字节到指定地址
@@ -127,11 +146,10 @@ esp_err_t soft_spi_read_byte(uint16_t addr, uint8_t *data);
  * @param len 数据长度
  * @return ESP_OK 成功
  */
-esp_err_t soft_spi_write_nbytes(uint16_t addr, const uint8_t *buf, uint16_t len);
+void soft_spi_write_nbytes(uint16_t addr, const uint8_t *buf, uint16_t len);
 
 // 从指定地址读取多字节
-esp_err_t soft_spi_read_nbytes(uint16_t addr, uint8_t *buf, uint16_t len);
-
+void soft_spi_read_nbytes(uint16_t addr, uint8_t *buf, uint16_t len);
 /**
  * @brief 检查设备通信是否正常
  *
@@ -180,5 +198,9 @@ uint8_t soft_spi_recv_byte(void);
  * @param level 0=低电平（选中），1=高电平（释放）
  */
 void soft_spi_cs_set(int level);
+
+// 获取 SPI 互斥锁
+void bsp_spi_take_lock(void);
+void bsp_spi_give_lock(void);
 
 #endif /* __BSP_SOFT_SPI_H__ */

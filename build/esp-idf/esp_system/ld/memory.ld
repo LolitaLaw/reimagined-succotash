@@ -30,9 +30,13 @@
        
 /* List of deprecated options */
 /*
+
  * SPDX-FileCopyrightText: 2021 Espressif Systems (Shanghai) CO LTD
+
  *
+
  * SPDX-License-Identifier: Apache-2.0
+
  */
 /* CPU instruction prefetch padding size for flash mmap scenario */
 _esp_flash_mmap_prefetch_pad_size = 16;

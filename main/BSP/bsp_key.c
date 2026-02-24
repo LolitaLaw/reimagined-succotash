@@ -38,79 +38,80 @@ static void key_process_task(void *arg)
     while (1)
     {
         // 获取 SPI 互斥量
-        SemaphoreHandle_t mutex = bsp_spi_get_lock();
-        if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE)
+        bsp_spi_take_lock();
+
+        // 1. 读取硬件 (保留原本的高效率读取方式)
+        // 注意：请确保 mutex 已经在别处或 init 中初始化，或者在这里加锁
+        uint8_t raw_e = 0;
+        soft_spi_read_byte(P_IO_PortE_Data, &raw_e); // 读取 PortE 数据
+        uint8_t raw_d = 0;
+        soft_spi_read_byte(P_IO_PortD_Data, &raw_d); // 读取 PortD 数据
+
+        // 释放互斥量
+        bsp_spi_give_lock();
+
+        // 2. 遍历处理所有按键
+        for (int i = 0; i < KEY_COUNT; i++)
         {
-            // 1. 读取硬件 (保留原本的高效率读取方式)
-            // 注意：请确保 mutex 已经在别处或 init 中初始化，或者在这里加锁
-            uint8_t raw_e = SPI2_ReadByte(P_IO_PortE_Data); // 读取 PortE 数据
-            uint8_t raw_d = SPI2_ReadByte(P_IO_PortD_Data); // 读取 PortD 数据
+            key_cfg_t *k = &g_keys[i];
+            bool is_active = false;
+            // 提取电平状态
+            if (k->port_addr == P_IO_PortE_Data)
+                is_active = (raw_e & k->pin_mask) ? true : false;
+            else
+                is_active = (raw_d & k->pin_mask) ? true : false;
 
-            // 释放互斥量
-            xSemaphoreGive(mutex);
-            // 2. 遍历处理所有按键
-            for (int i = 0; i < KEY_COUNT; i++)
+            // 3. 状态机逻辑
+            switch (k->state)
             {
-                key_cfg_t *k = &g_keys[i];
-                bool is_active = false;
-                // 提取电平状态
-                if (k->port_addr == P_IO_PortE_Data)
-                    is_active = (raw_e & k->pin_mask) ? true : false;
-                else
-                    is_active = (raw_d & k->pin_mask) ? true : false;
-
-                // 3. 状态机逻辑
-                switch (k->state)
+            case STATE_IDLE: // 空闲状态，等待按下
+                if (is_active)
                 {
-                case STATE_IDLE: // 空闲状态，等待按下
-                    if (is_active)
-                    {
-                        k->state = STATE_DEBOUNCE;
-                        k->ticks = 0;
-                    }
-                    break;
-                case STATE_DEBOUNCE: // 消抖状态，等待稳定按下
-                    if (is_active)
-                    {
-                        k->ticks++;
-                        if (k->ticks >= DEBOUNCE_TICKS)
-                        { // 2 * 20ms = 40ms 消抖
-                            k->state = STATE_PRESS;
-                            k->ticks = 0;
-                            // 触发按下事件
-                            send_key_event(k->id, KEYS_EVT_PRESS);
-                        }
-                    }
-                    else
-                        k->state = STATE_IDLE; // 抖动，回去
-                    break;
-                case STATE_PRESS: // 按下状态，等待释放或长按
-                    if (is_active)
-                    {
-                        k->ticks++;
-                        if (k->ticks >= LONG_PRESS_TIME)
-                        {
-                            k->state = STATE_LONG_PRESS;
-                            // 触发长按事件
-                            send_key_event(k->id, KEYS_EVT_LONG_PRESS);
-                        }
-                    }
-                    else
-                    {
-                        // 没到长按时间就松开了 -> 短按释放 (Click)
-                        send_key_event(k->id, KEYS_EVT_RELEASE);
-                        k->state = STATE_IDLE;
-                    }
-                    break;
-                case STATE_LONG_PRESS: // 长按状态，等待释放
-                    if (!is_active)
-                    {
-                        // 长按结束
-                        send_key_event(k->id, KEYS_EVT_LONG_RELEASE);
-                        k->state = STATE_IDLE;
-                    }
-                    break;
+                    k->state = STATE_DEBOUNCE;
+                    k->ticks = 0;
                 }
+                break;
+            case STATE_DEBOUNCE: // 消抖状态，等待稳定按下
+                if (is_active)
+                {
+                    k->ticks++;
+                    if (k->ticks >= DEBOUNCE_TICKS)
+                    { // 2 * 20ms = 40ms 消抖
+                        k->state = STATE_PRESS;
+                        k->ticks = 0;
+                        // 触发按下事件
+                        send_key_event(k->id, KEYS_EVT_PRESS);
+                    }
+                }
+                else
+                    k->state = STATE_IDLE; // 抖动，回去
+                break;
+            case STATE_PRESS: // 按下状态，等待释放或长按
+                if (is_active)
+                {
+                    k->ticks++;
+                    if (k->ticks >= LONG_PRESS_TIME)
+                    {
+                        k->state = STATE_LONG_PRESS;
+                        // 触发长按事件
+                        send_key_event(k->id, KEYS_EVT_LONG_PRESS);
+                    }
+                }
+                else
+                {
+                    // 没到长按时间就松开了 -> 短按释放 (Click)
+                    send_key_event(k->id, KEYS_EVT_RELEASE);
+                    k->state = STATE_IDLE;
+                }
+                break;
+            case STATE_LONG_PRESS: // 长按状态，等待释放
+                if (!is_active)
+                {
+                    // 长按结束
+                    send_key_event(k->id, KEYS_EVT_LONG_RELEASE);
+                    k->state = STATE_IDLE;
+                }
+                break;
             }
         }
 
@@ -285,6 +286,8 @@ static void app_key_task(void *arg)
                 // 其他按键暂无业务逻辑
                 break;
             }
+
+            lcd_update(); // 更新 LCD
         }
     }
 }
@@ -293,11 +296,19 @@ static void app_key_task(void *arg)
 
 void key_init(void)
 {
-    // 1. 创建队列
+    // 创建队列
     g_key_queue = xQueueCreate(KEY_QUEUE_LEN, sizeof(key_msg_t));
-    // 2. 可以在这里初始化 SPI (如果 SPI 还没被别的模块初始化)
-    // bsp_spi_init();
-    xTaskCreate(key_process_task, "KeyTask", 2048, NULL, 5, NULL); // 3. 创建按键扫描任务
+    // GPL811x的IO口初始化
+    F_GPL811Reg_WriteData(P_IO_Ctrl, 0); // 关闭IO口功能
+    // 配置PortE为浮空输入
+    GPIOE_FLOAT_INPUT(0x01);
+    GPIOE_OPENPD_INPUT(KEY_MASK + DC_PIN); // 配置按键+DC为下拉输入
+    // 配置PortD为浮空输入
+    soft_spi_write_byte(P_IO_PortD_Attrib, 0); // 设置PortD为普通IO口
+    GPIOD_OPENPD_INPUT(KEY_PD_MASK);           // 配置为下拉输入
+
+    // 创建任务
+    xTaskCreate(key_process_task, "KeyTask", 2048, NULL, 5, NULL); // 创建按键扫描任务
     // 优先级建议比 bsp_key_task 低一点点，或者相同
-    xTaskCreate(app_key_task, "AppKeyTask", 4096, NULL, 4, NULL); // 4. 创建按键业务处理任务
+    xTaskCreate(app_key_task, "AppKeyTask", 4096, NULL, 4, NULL); // 创建按键业务处理任务
 }

@@ -1,36 +1,47 @@
 #ifndef __BSP_CONFIG_H__
 #define __BSP_CONFIG_H__
 
-// 标准库头文件
+//!== 标准库头文件 !==
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+// #include <soc/cpu.h>
+#include "esp_mac.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include "esp_log.h"
 
-// ESP-IDF 头文件
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+//!== ESP-IDF 头文件!==
+#include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/portmacro.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
-#include "esp_netif.h"
 #include "esp_wifi_types.h"
+#include "esp_netif.h"
 #include "esp_event.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
-// #include "sdkconfig.h"
 
-// 自定义头文件
+//!== 自定义头文件 !==
+// 日志相关
 #include "BSP/bsp_log.h"
+// SPI相关
 #include "BSP/SPI/bsp_soft_spi.h"
-#include "BSP/SPI/bsp_spi2.h"
+// GPIO相关
 #include "BSP/GPL811X.h"
 #include "BSP/bsp_key.h"
-#include "BSP/bsp_lcd.h"
-#include "bsp_wifi.h"
-#include "LCD/ws3900_lcd.h"
-#include "LCD/lcd_display.h"
+// LCD相关
+#include "BSP/LCD/bsp_lcd.h"
+#include "BSP/LCD/ws3900_lcd.h"
+#include "BSP/LCD/lcd_display.h"
+// WiFi相关
+#include "BSP/bsp_wifi.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -89,5 +100,6 @@ typedef union
         uint8_t Bit15 : 1;
     } Bit;
 } Word;
+
 extern struct model_info gw_model;
 #endif // BSP_CONFIG
